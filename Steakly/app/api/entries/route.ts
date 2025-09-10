@@ -1,3 +1,4 @@
+// app/api/entries/route.ts
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
@@ -63,7 +64,10 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+import {ObjectId} from 'mongoose'
+
+// Alternative approach for the query building
+export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email)
@@ -74,7 +78,18 @@ export async function GET() {
     const dbUser = await User.findOne({ email: session.user.email })
     if (!dbUser) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
-    const entries = await Entry.find({ userId: dbUser._id }).sort({ date: -1 })
+    // Get URL parameters for filtering
+    const { searchParams } = new URL(req.url)
+    const habitId = searchParams.get('habitId')
+    
+    // Build query using Record<string, any>
+    const query: Record<string, string | ObjectId> = { userId: dbUser._id }
+    if (habitId) query.habitId = habitId
+    
+    // Get entries
+    const entries = await Entry.find(query).sort({ date: -1 })
+    
+    // Return consistent format - always an array of entries
     return NextResponse.json(entries, { status: 200 })
   } catch (err) {
     console.error("GET /api/entries error:", err)

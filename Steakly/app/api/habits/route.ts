@@ -74,3 +74,39 @@ export async function POST(req: Request) {
     )
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || !session.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const habitId = body.habitId
+
+    if (!habitId) {
+      return NextResponse.json({ error: "Habit ID is required" }, { status: 400 })
+    }
+
+    await connectDB()
+
+    // Find user
+    const dbUser = await User.findOne({ email: session.user.email })
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // Delete habit
+    await Habit.deleteOne({ _id: habitId, userId: dbUser._id })
+
+    return NextResponse.json({ message: "Habit deleted successfully" }, { status: 200 })
+  } catch (error) {
+    console.error("DELETE /api/habits error:", error)
+    return NextResponse.json(
+      { error: "Server error", details: String(error) },
+      { status: 500 }
+    )
+  }
+}
